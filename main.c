@@ -186,12 +186,12 @@ static void sonar_trig(void)
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
 
     LL_TIM_SetPrescaler(TIM2, 47); 
-    LL_TIM_SetAutoReload(TIM2, 59999); //output freq = 16 Gz - 62,5 ms
-    LL_TIM_OC_SetCompareCH1(TIM2, 59985); //10 mks
+    LL_TIM_SetAutoReload(TIM2, 59999); //period PWM = 60ms
+    LL_TIM_OC_SetCompareCH1(TIM2, 59989); //10 mks
 
     LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH1);
 
-    LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);  // 2
+    LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);
     LL_TIM_OC_SetMode(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
 
     LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
@@ -202,8 +202,8 @@ static void sonar_trig(void)
     /*
      * Setup NVIC
      */
-    NVIC_EnableIRQ(TIM2_IRQn);
-    NVIC_SetPriority(TIM2_IRQn, 3);
+    //NVIC_EnableIRQ(TIM2_IRQn);
+    //NVIC_SetPriority(TIM2_IRQn, 3);
 
     return ;
 }
@@ -216,7 +216,6 @@ static void sonar_echo(void)
     
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
-    //LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL);
     LL_TIM_SetPrescaler(TIM3, 47);//--
     //LL_TIM_SetAutoReload(TIM3, 65535);
 
@@ -225,7 +224,7 @@ static void sonar_echo(void)
 
     LL_TIM_IC_SetPolarity(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);  
 
-    LL_TIM_SetCounterMode(TIM3, LL_TIM_COUNTERMODE_UP); //
+    LL_TIM_SetCounterMode(TIM3, LL_TIM_COUNTERMODE_UP); 
 
     LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH2);
 
@@ -233,7 +232,6 @@ static void sonar_echo(void)
     
     LL_TIM_EnableIT_CC2(TIM3); //cc1
     LL_TIM_EnableCounter(TIM3);
-    
 
     /*
      * Setup NVIC
@@ -243,23 +241,11 @@ static void sonar_echo(void)
 
     return ;
 }
-/*
-static void timer(void)
-{   
-    //TIM14 CH1 - PA4 (AF4)
-
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_4);
-
-    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM14);
-}
-*/
-
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// it's not important
-static void timer_config(void)
+
+
+static void servo_1(void)
 {
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
 
@@ -268,37 +254,69 @@ static void timer_config(void)
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM14);
 
-    LL_TIM_SetPrescaler(TIM14, 47);
-    LL_TIM_SetAutoReload(TIM14, 65535); //1 mks
-    LL_TIM_SetCounterMode(TIM14, LL_TIM_COUNTERMODE_UP);
-
-    LL_TIM_CC_EnableChannel(TIM14, LL_TIM_CHANNEL_CH2); //---
-
-    //LL_TIM_EnableIT_UPDATE(TIM14);
+    LL_TIM_SetPrescaler(TIM14, 14); 
+    LL_TIM_SetAutoReload(TIM14, 64000); //period PWM = 20ms
     
+    //double Val = 0.6 / 20 * 64000;
+    //LL_TIM_OC_SetCompareCH1(TIM14, 7680);
+
+    LL_TIM_CC_EnableChannel(TIM14, LL_TIM_CHANNEL_CH1);
+
+    LL_TIM_OC_SetPolarity(TIM14, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);
+    LL_TIM_OC_SetMode(TIM14, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+
+    LL_TIM_SetCounterMode(TIM14, LL_TIM_COUNTERMODE_UP);
+    
+    LL_TIM_EnableIT_CC1(TIM14);
     LL_TIM_EnableCounter(TIM14);
+
     /*
      * Setup NVIC
      */
-    NVIC_EnableIRQ(TIM14_IRQn);
-    NVIC_SetPriority(TIM14_IRQn, 1);
-    return;
+    //NVIC_EnableIRQ(TIM14_IRQn);
+    //NVIC_SetPriority(TIM14_IRQn, 3);
+
+    return ;
+
+}
+
+static void servo_2(void)
+{
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+
+    LL_GPIO_SetPinMode  (GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_1, LL_GPIO_AF_2); //TIM2 CH2
+
+    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
+
+    LL_TIM_SetPrescaler(TIM2, 14); 
+    LL_TIM_SetAutoReload(TIM2, 64000); //period PWM = 20ms
+    
+    //double Val = 0.6 / 20 * 64000;
+    //LL_TIM_OC_SetCompareCH1(TIM14, 7680);
+
+    LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH2);
+
+    LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_OCPOLARITY_HIGH);
+    LL_TIM_OC_SetMode(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
+
+    LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
+    
+    LL_TIM_EnableIT_CC1(TIM2);
+    LL_TIM_EnableCounter(TIM2);
+
+    /*
+     * Setup NVIC
+     */
+    //NVIC_EnableIRQ(TIM14_IRQn);
+    //NVIC_SetPriority(TIM14_IRQn, 3);
+
+    return ;
+
 }
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/*
-void TIM1_IRQHandler(void)
-{
-    while (!LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_8))
-    {
-        diff = count;
-    }
 
-    count = 0;
-    LL_TIM_ClearFlag_UPDATE(TIM1);
-    //LL_TIM_ClearFlag_CC1(TIM1);
-}
-*/
 /*
 void TIM3_IRQHandler(void)
 {
@@ -455,9 +473,19 @@ static void systick_config(void)
  * Handler for system timer
  */
 
+uint32_t cnt = 1920;
+
+
 void SysTick_Handler(void)
 {
-    dec_display(dist); 
+
+    dec_display(dist);
+
+    if (cnt < 8300) cnt++;
+    else cnt = 1600;
+
+    LL_TIM_OC_SetCompareCH1(TIM14, cnt); 
+    LL_TIM_OC_SetCompareCH2(TIM2, cnt);
     return;
 }
 /*---------------------------------------------*/
@@ -467,7 +495,9 @@ int main()
     gpio_config();
     sonar_trig();
     sonar_echo();
-    timer_config();
+    //timer_config();
+    servo_1();
+    servo_2();
     systick_config();
 
     while (1);
