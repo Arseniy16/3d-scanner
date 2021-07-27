@@ -410,19 +410,22 @@ static void usart_config(void)
      * Setting USART pins
      */
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-    //USART1_TX
+    
+    // USART1_TX
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9, LL_GPIO_AF_1);
     LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
-    //USART1_RX
+    
+    // USART1_RX
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_1);
     LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_HIGH);
+    
     /*
      * USART Set clock source
      */
     LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_USART1);
-    LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK1);
+    LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK1); 
     /*
      * USART Setting
      */
@@ -431,16 +434,17 @@ static void usart_config(void)
     LL_USART_SetDataWidth(USART1, LL_USART_DATAWIDTH_8B);
     LL_USART_SetStopBitsLength(USART1, LL_USART_STOPBITS_1);
     LL_USART_SetTransferBitOrder(USART1, LL_USART_BITORDER_LSBFIRST);
-    LL_USART_SetBaudRate(USART1, SystemCoreClock,
-                         LL_USART_OVERSAMPLING_16, 115200);
+    LL_USART_SetBaudRate(USART1, SystemCoreClock, LL_USART_OVERSAMPLING_16, 115200);
     LL_USART_EnableIT_IDLE(USART1);
     LL_USART_EnableIT_RXNE(USART1);
+    
     /*
      * USART turn on
      */
     LL_USART_Enable(USART1);
     while (!(LL_USART_IsActiveFlag_TEACK(USART1) &&
              LL_USART_IsActiveFlag_REACK(USART1)));
+
     /*
      * Turn on NVIC interrupt line
      */
@@ -449,36 +453,20 @@ static void usart_config(void)
     return;
 }
 
-/*---------------------------------------------*/
+/*---------------------------------------------------------------------*/
 /*
-void USART1_IRQHandler(void)
+ * Initialize USART to manage responses 
+ */
+static void manage_response(int16_t value) 
 {
-    static uint8_t pos = 0;
-    
-    if (LL_USART_IsActiveFlag_RXNE(USART1)) 
-    {
-        uart_req.params[pos] = LL_USART_ReceiveData8(USART1);
-        pos++;
-        count++;
-    }
-    if (LL_USART_IsActiveFlag_IDLE(USART1)) 
-    {
-        pos = 0;
-        uart_req.active = 1;
-        LL_USART_ClearFlag_IDLE(USART1);
-    }
-    return;
-}
-*/
-/*---------------------------------------------*/
-void manage_response(int16_t value) 
-{
-    int8_t pos = 0;
+    int8_t pos = 0; // init position
         
-    LL_USART_ClearFlag_TC(USART1);
+    LL_USART_ClearFlag_TC(USART1); // update the flag
 
+    /*
+     * Special separators for sending a string to usart
+     */
     if (value == '*' || value == ',' || value == '\n')
-    //if (!isdigit(value))
     {
         LL_USART_TransmitData8(USART1, value);
         while (!LL_USART_IsActiveFlag_TC(USART1));
@@ -487,6 +475,9 @@ void manage_response(int16_t value)
         return;
     }
 
+    /*
+     * To send negative numbers
+     */
     if (value < 0) 
     {
         LL_USART_TransmitData8(USART1, '-');
@@ -494,16 +485,18 @@ void manage_response(int16_t value)
         value = abs(value);
     }
 
+    /*
+     * To send numbers
+     */ 
     while (value)
     {
         uart_resp.params[pos++] =  value % 10;
-
         value /= 10;
     }
 
     if (pos > 0) pos--;
     
-    //send value to usart
+    // Send value to usart
     while (pos >= 0)
     {
         while (!LL_USART_IsActiveFlag_TXE(USART1));
@@ -511,16 +504,22 @@ void manage_response(int16_t value)
     }
     while (!LL_USART_IsActiveFlag_TC(USART1));
 
-/*    //special separator to send string to usart
+/*    
     LL_USART_TransmitData8(USART1, '\n');
     while (!LL_USART_IsActiveFlag_TC(USART1));
 */
     return;
 }
 
-/*---------------------------------------------*/
-void manage_text(int32_t X_axis, int32_t Y_axis, int32_t Z_axis)
+/*---------------------------------------------------------------------*/
+/*
+ * Manager to send coordinates in one string
+ */
+static void manage_string(int32_t X_axis, int32_t Y_axis, int32_t Z_axis)
 {
+    /*
+     * String format: (X, Y, Z \n)
+     */
     manage_response(X_axis);
     manage_response(',');
     manage_response(Y_axis);
@@ -674,7 +673,7 @@ static void Conversation(uint32_t Arr_X, uint32_t Arr_Y)
     
  
     //send values to usart
-    manage_text(X_axis, Y_axis, Z_axis);
+    manage_string(X_axis, Y_axis, Z_axis);
     
     //manage_response(Y_axis);
     //manage_response(Z_axis);
