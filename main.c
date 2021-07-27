@@ -529,69 +529,29 @@ static void manage_string(int32_t X_axis, int32_t Y_axis, int32_t Z_axis)
     return;
 }
 
-/*
-static void manage_requests(void) 
-{
-    uint16_t is_ok = 0, temp = 0;
-   
-    if (!uart_req.active)
-        return;
-    
-    /*
-     * for output on the indicator 
-     */
-/*    value = 0;
-    
-    // to limit value contains <= 4 digits 
-    if (count > 4) 
-    {
-        count = 4;
-        is_ok = 0;
-    }
-    else is_ok = 1;
 
-    for (uint8_t i = 0; (i < count) && (i < 4); i++)
-    {
-        temp = uart_req.params[i] - '0';
-
-        for (uint8_t j = 1; j < count - i; j++)
-            temp *= 10;
-
-        value += temp;
-    }
-
-    count = 0;
-
-    //don't transmit anything to execute more than 1 command
-    while (!LL_USART_IsActiveFlag_TXE(USART1));
-    LL_USART_TransmitData8(USART1, 'a');
-
-    uart_req.active = 0;
-    return;
-}
-*/
-
-/*---------------------------------------------*/
-
+/*---------------------------------------------------------------------*/
 /* 
  * Pulse_duration: 0.5 - 2.6(ms), (normal: 0.6 - 2.4(ms) )
- * Period: 20ms
- * NO: N_deg = Pulse_durarion/Period * ARR(64000)
- */
-
-/* 0deg -> ARR = 1600 (0.5ms)
- * 180deg -> ARR = 8300 (2.6ms)
- */
-
-/* ////////////////////////////////////////
- * Servo_1(X): 0deg -> ARR = 2080 (0.65ms)
- *          180deg -> ARR = 7680 (2.4ms)
- * -------------------------------------
- * Servo_2(Y): 0deg -> ARR = 1600 (0.5ms)
- *          180deg -> ARR = 7680 (2.4ms) 
- * ////////////////////////////////////////
+ * Period: 20 ms
+ * NO: N_deg = Pulse_durarion / Period * ARR(64000)
  */ 
-/*---------------------------------------------*/
+/*_____________________________________________________________________*/
+/* 
+ * 0deg -> ARR = 1600 (0.5 ms)
+ * 180deg -> ARR = 8300 (2.6 ms)
+ */
+/*---------------------------------------------------------------------*/
+
+/* ==============================================
+ * Servo_1(X): 0 deg -> ARR = 2080 (0.65 ms)
+ *             180 deg -> ARR = 7680 (2.4 ms)
+ * ----------------------------------------------
+ * Servo_2(Y): 0 deg -> ARR = 1600 (0.5 ms)
+ *             180 deg -> ARR = 7680 (2.4 ms) 
+ * ==============================================
+ */ 
+/*---------------------------------------------------------------------*/
 
 // test
 uint32_t cnt = 3627; //2613;
@@ -600,11 +560,13 @@ uint8_t flag = 1; //clockwise
 /*
  * Handler for system timer
  */
-
 void SysTick_Handler(void)
 {
+    /*
+     * Show the distance on the indicator
+     */
+    dec_display((uint32_t) dist);
 
-    dec_display((uint32_t) dist); //dist
 /*
     if (flag)
     {
@@ -617,12 +579,19 @@ void SysTick_Handler(void)
         else flag = 1;
     }
     //else cnt = 1600;
-*/
+
     //LL_TIM_OC_SetCompareCH2(TIM2, cnt); //servo2
     //LL_TIM_OC_SetCompareCH1(TIM2, 1920); //servo1
     //LL_TIM_OC_SetCompareCH2(TIM2, 4640); //servo2
+*/
     return;
 }
+
+/*---------------------------------------------------------------------*/
+
+/* ################################################################### */
+/* ############################# VARIABLES ########################### */
+/* ################################################################### */
 
 /*
  * Edge - ARR for servo in normal condition (0 - 180)
@@ -634,111 +603,73 @@ const uint32_t minEdge_Y = 1600;
 const uint32_t maxEdge_Y = 7680;
 
 /*
- * Initialization for servos to limit angles
+ * Initialization servos to limit angles
  * easier to control servos
  */
-const uint32_t minArr_X = minEdge_X; // 0deg
+const uint32_t minArr_X = minEdge_X; // 0 deg
 const uint32_t maxArr_X = maxEdge_X; // 180 deg
 
 //in reverse
-const uint32_t minArr_Y = 3627; // 60deg
-const uint32_t maxArr_Y = 6667; // 150deg 
-
-const uint32_t Step_X = 60; // 1 step = 0.03 deg (but it's not accurate)
-const uint32_t Step_Y = 180; //30
-
-//const double pi = 3.14159265;
-const double deg2rad = M_PI / 180.0; 
-
-uint8_t scanDirection = 1; 
-
-uint8_t Cycle = 2; //number of cycles for scanning
+const uint32_t minArr_Y = 3627; // 60 deg
+const uint32_t maxArr_Y = 6667; // 150 deg 
 
 /*
- * azimuth   -> angle on the surface XY
- * elevation -> angle on the surface XZ
+ * Initialization step: Step_X - for XY_plane
+ *                      Step_Y - for XZ_plane
  */
+const uint32_t Step_X = 60; // 1 step = 0.03 deg
+const uint32_t Step_Y = 180; //30
 
+const double deg2rad = M_PI / 180.0; 
+
+/*
+ * if scanDirection = 1 -> clockwise
+ * else -> counterclockwise 
+ */
+uint8_t scanDirection = 1;
+
+/*
+ * Count of cycles for scanning
+ */
+uint8_t Cycle = 2;
+
+/* ################################################################### */
+
+/*---------------------------------------------------------------------*/
+/*
+ * azimuth   -> angle on the XY plane
+ * elevation -> angle on the XZ plane
+ */
 static void Conversation(uint32_t Arr_X, uint32_t Arr_Y)
 {
+    /*
+     * Calculation of position in degrees
+     */
     double PosX = 180.0 * (Arr_X - minEdge_X) / (maxEdge_X - minEdge_X);
     double PosY = 180.0 * (Arr_Y - minEdge_Y) / (maxEdge_Y - minEdge_Y);
 
+    /*
+     * Converting to radians
+     */
     double azimuth = PosX * deg2rad;
     double elevation = PosY * deg2rad;
 
+    /*
+     * Calculation of coordinates by azimuth and elevation
+     */
     int32_t X_axis = (int32_t) dist * sin(elevation) * cos(azimuth); 
     int32_t Y_axis = (int32_t) dist * sin(elevation) * sin(azimuth);
     int32_t Z_axis = (int32_t) dist * -cos(elevation);
     
- 
-    //send values to usart
+    /*
+     * Send coordinates to usart
+     */
     manage_string(X_axis, Y_axis, Z_axis);
     
-    //manage_response(Y_axis);
-    //manage_response(Z_axis);
-
     return;
 } 
 
-
-
-// ----------------------------------------------
-/*
-for (uint8_t i = 0; i < Cycle; i++)
-{
-    //go to home
-    Arr_X = minArr_X;
-    Arr_Y = minArr_Y;
-
-    while (Arr_Y <= maxArr_Y)
-    {
-
-        if (scanDirection)
-        {
-            while (Arr_X <= maxArr_X)
-            {
-                Conversation(Arr_X, Arr_Y);
-                
-                LL_TIM_OC_SetCompareCH1(TIM2, Arr_X); //servo1
-                
-                Arr_X += Step_X;  
-            }
-
-            scanDirection = 0;
-        }
-        else 
-        {
-            while (Arr_X >= minArr_X)
-            {
-                Conversation(Arr_X, Arr_Y);
-
-                LL_TIM_OC_SetCompareCH1(TIM2, Arr_X); //servo1    
-
-                Arr_X -= Step_X;  
-            }
-
-            scanDirection = 1;
-        }
-
-        LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y); //servo2
-
-        Arr_Y += Step_Y;  
-    }
-    
-}
-*/
-
-/* \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ 
- * TODO:
- * 1) go to home (servo)
- * 2) get Length
- * 3) send with usart value
- * 4) incX++ for X axis to maxPos and {2) - 3)}   <<<
- * 5) incY+1 and continue 4) to minPosX   --------->| 
- *
- */
-/*---------------------------------------------*/
+/*---------------------------------------------------------------------*/
 int main()
 {
     rcc_config();
