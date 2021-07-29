@@ -1,13 +1,14 @@
-/* //--------------------------------------------------------
- *        It's a CONCLUSION PROJECT in the course STM32 
- *                This is Ultrasonic 3d_scanner  
- * //--------------------------------------------------------
- * //-----------------------MAIN IDEA----------------------//
- * //========================================================
- * It scans the space using ultrasonic sensor and two servos 
- * Also it shows the distance on the 7-segment indicator
- * and sends it through the usart to show data in graph
- * //========================================================
+/* |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+ * |---------------------------------------------------------|
+ * |       It's a CONCLUSION PROJECT in the course STM32     |
+ * |               This is Ultrasonic 3d_scanner             |
+ * |---------------------------------------------------------|
+ * |----------------------THE_MAIN_IDEA----------------------|
+ * |=========================================================|
+ * |It scans the space using ultrasonic sensor and two servos|
+ * |Also it shows the distance on the 7-segment indicator    |
+ * |and sends it through the usart to show data in graph     |
+ * |=========================================================|
  */
 
 #include "stm32f0xx_ll_rcc.h"
@@ -22,11 +23,88 @@
 #include "stm32f0xx_ll_cortex.h"
 #include "math.h"
 
-/*-----------------------------VARIABLES----------------------------- */
-/*--------------------------------------------------------------------*/
+/*---------------------------------------------------------------------*/
+/*------------------Some information about servos----------------------*/
+
+/* ========================================================
+ * Pulse_duration: 0.5 - 2.6(ms), (normal: 0.6 - 2.4(ms) )
+ * Period: 20 ms
+ * NO: N_deg = Pulse_durarion / Period * ARR(64000)
+ * ========================================================
+ */ 
+/*_____________________________________________________________________*/
+/* 
+ * 0deg -> ARR = 1600 (0.5 ms)
+ * 180deg -> ARR = 8300 (2.6 ms)
+ */
+/*---------------------------------------------------------------------*/
+
+/* ==============================================
+ * Servo_1(X): 0 deg -> ARR = 2080 (0.65 ms)
+ *             180 deg -> ARR = 7680 (2.4 ms)
+ * ----------------------------------------------
+ * Servo_2(Y): 0 deg -> ARR = 1600 (0.5 ms)
+ *             180 deg -> ARR = 7680 (2.4 ms)
+ * ==============================================
+ */ 
+/*_____________________________________________________________________*/
+
+
+/* ################################################################### */
+/* ############################# VARIABLES ########################### */
+/* ################################################################### */
+
+/*
+ * The difference (in mks) between the start and stop time (for ulttrasonic)
+ */
 uint32_t diff = 0;
 
+/*
+ * The distance between object and sonar 
+ */
 double dist = 0.0;
+
+/*
+ * Edge - ARR for servo in normal condition (0 - 180)
+ */
+const uint32_t minEdge_X = 2080;
+const uint32_t maxEdge_X = 7680;
+
+const uint32_t minEdge_Y = 1600;
+const uint32_t maxEdge_Y = 7680;
+
+/*
+ * Initialization servos to limit angles
+ * easier to control servos
+ */
+const uint32_t minArr_X = minEdge_X; // 0 deg
+const uint32_t maxArr_X = maxEdge_X; // 180 deg
+
+const uint32_t minArr_Y = 3627; // 60 deg
+const uint32_t maxArr_Y = 6667; // 150 deg
+
+/*
+ * Initialization step: Step_X - for XY_plane
+ *                      Step_Y - for XZ_plane
+ * NO: 1 step = 0.03 deg
+ */
+const uint32_t Step_X = 60;
+const uint32_t Step_Y = 90; 
+
+const double deg2rad = M_PI / 180.0; 
+
+/*
+ * if scanDirection = 1 -> rotate the servo clockwise
+ * else -> rotate the servo counterclockwise 
+ */
+uint8_t scanDirection = 1;
+
+/*
+ * Count of cycles for scanning
+ */
+uint8_t Cycle = 1;
+
+/* ################################################################### */
 
 /*---------------------------------------------------------------------*/
 /*
@@ -43,9 +121,8 @@ double dist = 0.0;
    (PIN_0) * (LL_GPIO_PIN_0)   )
 
 /*---------------------------------------------------------------------*/
-
 /*
- * it's a special mask to turn on paticular leds on indicator
+ * It's a special mask to turn on paticular leds on indicator
  */
 uint32_t mask_indicator(uint32_t mask)
 {
@@ -56,7 +133,6 @@ uint32_t mask_indicator(uint32_t mask)
 }
 
 /*---------------------------------------------------------------------*/
-
 /**
   * System Clock Configuration
   * The system Clock is configured as follow :
@@ -99,7 +175,9 @@ static void rcc_config()
 }
 
 /*---------------------------------------------------------------------*/
-
+/*
+ * Configuration all GPIO pins
+ */
 static void gpio_config(void)
 {
     /*
@@ -117,12 +195,6 @@ static void gpio_config(void)
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_1, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_3, LL_GPIO_MODE_OUTPUT);
-
-    /*
-     * Init port for USER button
-     */
-        //LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-        //LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_0, LL_GPIO_MODE_INPUT);
     
     /*
      * Init ports for indicator
@@ -217,12 +289,6 @@ static void sonar_trig(void)
     LL_TIM_EnableIT_CC1(TIM14);
     LL_TIM_EnableCounter(TIM14);
 
-    /*
-     * Setup NVIC
-     */
-    //NVIC_EnableIRQ(TIM2_IRQn);
-    //NVIC_SetPriority(TIM2_IRQn, 3);
-
     return ;
 }
 
@@ -245,9 +311,9 @@ static void sonar_echo(void)
 
     LL_TIM_SetPrescaler(TIM3, 47); // frequency = 1000000 MHz
 
-    LL_TIM_IC_SetActiveInput(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI); 
+    LL_TIM_IC_SetActiveInput(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
-    LL_TIM_IC_SetPolarity(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);  
+    LL_TIM_IC_SetPolarity(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
 
     LL_TIM_SetCounterMode(TIM3, LL_TIM_COUNTERMODE_UP); 
     LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH2);
@@ -297,12 +363,6 @@ static void servo_1(void)
     LL_TIM_EnableIT_CC1(TIM2);
     LL_TIM_EnableCounter(TIM2);
 
-    /*
-     * Setup NVIC
-     */
-    //NVIC_EnableIRQ(TIM14_IRQn);
-    //NVIC_SetPriority(TIM14_IRQn, 3);
-
     return ;
 }
 
@@ -339,18 +399,12 @@ static void servo_2(void)
     LL_TIM_EnableIT_CC1(TIM2);
     LL_TIM_EnableCounter(TIM2);
 
-    /*
-     * Setup NVIC
-     */
-    //NVIC_EnableIRQ(TIM2_IRQn);
-    //NVIC_SetPriority(TIM2_IRQn, 3);
-
     return ;
 }
 
 /*---------------------------------------------------------------------*/
 /*
- * Handler for timer_3
+ * Handler for TIMER_3
  */
 void TIM3_IRQHandler(void)
 {
@@ -371,10 +425,9 @@ void TIM3_IRQHandler(void)
 
     dist = diff / 58.8 ; // distance in centimeters
 
-    LL_TIM_ClearFlag_CC2(TIM3); 
+    LL_TIM_ClearFlag_CC2(TIM3);
 
     return;
-
 }
 
 /*---------------------------------------------------------------------*/
@@ -384,8 +437,11 @@ void TIM3_IRQHandler(void)
 static void systick_config(void)
 {
     LL_InitTick(48000000, 1000);
+
     LL_SYSTICK_EnableIT();
+    
     NVIC_SetPriority(SysTick_IRQn, 0);
+    
     return;
 }
 
@@ -393,7 +449,8 @@ static void systick_config(void)
 /*
  * Structure for communication
  */
-typedef struct {
+typedef struct 
+{
     uint8_t cmd;
     uint8_t params[10];
     uint8_t active;
@@ -425,7 +482,7 @@ static void usart_config(void)
      * USART Set clock source
      */
     LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_USART1);
-    LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK1); 
+    LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK1);
     /*
      * USART Setting
      */
@@ -469,9 +526,9 @@ static void manage_response(int16_t value)
     if (value == '*' || value == ',' || value == '\n')
     {
         LL_USART_TransmitData8(USART1, value);
+        
         while (!LL_USART_IsActiveFlag_TC(USART1));
-        //LL_USART_TransmitData8(USART1, '\n');
-        //while (!LL_USART_IsActiveFlag_TC(USART1));
+
         return;
     }
 
@@ -481,7 +538,9 @@ static void manage_response(int16_t value)
     if (value < 0) 
     {
         LL_USART_TransmitData8(USART1, '-');
+        
         while (!LL_USART_IsActiveFlag_TC(USART1));
+        
         value = abs(value);
     }
 
@@ -491,23 +550,24 @@ static void manage_response(int16_t value)
     while (value)
     {
         uart_resp.params[pos++] =  value % 10;
+        
         value /= 10;
     }
 
     if (pos > 0) pos--;
-    
-    // Send value to usart
+
+    /*
+     * Send value to usart
+     */  
     while (pos >= 0)
     {
         while (!LL_USART_IsActiveFlag_TXE(USART1));
-        LL_USART_TransmitData8(USART1, uart_resp.params[pos--] + '0');    
+        
+        LL_USART_TransmitData8(USART1, uart_resp.params[pos--] + '0');
     }
+
     while (!LL_USART_IsActiveFlag_TC(USART1));
 
-/*    
-    LL_USART_TransmitData8(USART1, '\n');
-    while (!LL_USART_IsActiveFlag_TC(USART1));
-*/
     return;
 }
 
@@ -518,7 +578,7 @@ static void manage_response(int16_t value)
 static void manage_string(int32_t X_axis, int32_t Y_axis, int32_t Z_axis)
 {
     /*
-     * String format: (X, Y, Z \n)
+     * String format: (X, Y, Z '\n')
      */
     manage_response(X_axis);
     manage_response(',');
@@ -528,34 +588,6 @@ static void manage_string(int32_t X_axis, int32_t Y_axis, int32_t Z_axis)
     manage_response('\n');
     return;
 }
-
-
-/*---------------------------------------------------------------------*/
-/* 
- * Pulse_duration: 0.5 - 2.6(ms), (normal: 0.6 - 2.4(ms) )
- * Period: 20 ms
- * NO: N_deg = Pulse_durarion / Period * ARR(64000)
- */ 
-/*_____________________________________________________________________*/
-/* 
- * 0deg -> ARR = 1600 (0.5 ms)
- * 180deg -> ARR = 8300 (2.6 ms)
- */
-/*---------------------------------------------------------------------*/
-
-/* ==============================================
- * Servo_1(X): 0 deg -> ARR = 2080 (0.65 ms)
- *             180 deg -> ARR = 7680 (2.4 ms)
- * ----------------------------------------------
- * Servo_2(Y): 0 deg -> ARR = 1600 (0.5 ms)
- *             180 deg -> ARR = 7680 (2.4 ms) 
- * ==============================================
- */ 
-/*---------------------------------------------------------------------*/
-
-// test
-uint32_t cnt = 3627; //2613;
-uint8_t flag = 1; //clockwise
 
 /*
  * Handler for system timer
@@ -567,73 +599,8 @@ void SysTick_Handler(void)
      */
     dec_display((uint32_t) dist);
 
-/*
-    if (flag)
-    {
-        if (cnt < 6667) cnt++;
-        else flag = 0;
-    }
-    else if (!flag)
-    {
-        if(cnt > 3627) cnt--; //2613
-        else flag = 1;
-    }
-    //else cnt = 1600;
-
-    //LL_TIM_OC_SetCompareCH2(TIM2, cnt); //servo2
-    //LL_TIM_OC_SetCompareCH1(TIM2, 1920); //servo1
-    //LL_TIM_OC_SetCompareCH2(TIM2, 4640); //servo2
-*/
     return;
 }
-
-/*---------------------------------------------------------------------*/
-
-/* ################################################################### */
-/* ############################# VARIABLES ########################### */
-/* ################################################################### */
-
-/*
- * Edge - ARR for servo in normal condition (0 - 180)
- */
-const uint32_t minEdge_X = 2080;
-const uint32_t maxEdge_X = 7680;
-
-const uint32_t minEdge_Y = 1600;
-const uint32_t maxEdge_Y = 7680;
-
-/*
- * Initialization servos to limit angles
- * easier to control servos
- */
-const uint32_t minArr_X = minEdge_X; // 0 deg
-const uint32_t maxArr_X = maxEdge_X; // 180 deg
-
-//in reverse
-const uint32_t minArr_Y = 3627; // 60 deg
-const uint32_t maxArr_Y = 6667; // 150 deg 
-
-/*
- * Initialization step: Step_X - for XY_plane
- *                      Step_Y - for XZ_plane
- */
-const uint32_t Step_X = 60; // 1 step = 0.03 deg
-const uint32_t Step_Y = 180; //30
-
-const double deg2rad = M_PI / 180.0; 
-
-/*
- * if scanDirection = 1 -> clockwise
- * else -> counterclockwise 
- */
-uint8_t scanDirection = 1;
-
-/*
- * Count of cycles for scanning
- */
-uint8_t Cycle = 2;
-
-/* ################################################################### */
 
 /*---------------------------------------------------------------------*/
 /*
@@ -660,9 +627,9 @@ static void Conversation(uint32_t Arr_X, uint32_t Arr_Y)
     int32_t X_axis = (int32_t) dist * sin(elevation) * cos(azimuth); 
     int32_t Y_axis = (int32_t) dist * sin(elevation) * sin(azimuth);
     int32_t Z_axis = (int32_t) dist * -cos(elevation);
-    
+
     /*
-     * Send coordinates to usart
+     * Send coordinates to USART
      */
     manage_string(X_axis, Y_axis, Z_axis);
     
@@ -672,6 +639,9 @@ static void Conversation(uint32_t Arr_X, uint32_t Arr_Y)
 /*---------------------------------------------------------------------*/
 int main()
 {
+    /*
+     * Initialize all components
+     */
     rcc_config();
     gpio_config();
     sonar_trig();
@@ -680,83 +650,100 @@ int main()
     servo_2();
     systick_config();
     usart_config();
-    
-    //manage_text(-102, 12, 23);
-    //delay();
-    //manage_text(13, -148, 131);
-    //delay();
-    //manage_text(90, 21, -102);
-    //manage_response('*');
+
     /*
-    for (int i = 0; i < 10; i++)
-        Conversation(i, i*2);
-    */
-    
+     * Condition for starting the main program
+     */
     uint8_t condition = 1;
 
     while (1)
     {
-
-        //uint32_t Arr_X = minArr_X;
-        //LL_TIM_OC_SetCompareCH1(TIM2, minArr_X); //servo1
         if (condition)
         {
             for (uint8_t i = 0; i < Cycle; i++)
             {
-                //go to home
+                /*
+                 * Initialize home position 
+                 */
                 uint32_t Arr_X = minArr_X;
                 uint32_t Arr_Y = minArr_Y;
 
                 while (Arr_Y <= maxArr_Y)
                 {
+                    /*
+                     * Set the new position for the servo_2 (in XZ-plane)
+                     */
+                    LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y);
 
-                    LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y); //servo2
-                    //delay();
-
+                    /*
+                     * Rotate the servo clockwise
+                     */
                     if (scanDirection)
                     {
                         while (Arr_X <= maxArr_X)
                         {
+                            /*
+                             * Wait 60 ms until get the next distance  
+                             */
                             if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-                               
-                            Conversation(Arr_X, Arr_Y);
                             
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X); //servo1
+                            /*
+                             * Send coordinates to USART
+                             */   
+                            Conversation(Arr_X, Arr_Y); 
+                            
+                            /*
+                             * Set the new position for the servo_1 (in XY-plane)
+                             */
+                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
                             
                             Arr_X += Step_X;  
                         }
 
                         scanDirection = 0;
                     }
+                    /*
+                     * Rotate the servo counterclockwise
+                     */
                     else 
                     {
                         while (Arr_X >= minArr_X)
                         {
                             if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-
+                            
+                            /*
+                             * Send coordinates to USART
+                             */  
                             Conversation(Arr_X, Arr_Y);
+                            
+                            /*
+                             * Set the new position for the servo_1 (in XY-plane)
+                             */
+                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
 
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X); //servo1    
-
-                            Arr_X -= Step_X;  
+                            Arr_X -= Step_X;
                         }
 
                         scanDirection = 1;
                     }
 
-                    Arr_Y += Step_Y;  
-                }
-                
+                    Arr_Y += Step_Y;
+                }    
             }
 
+            /*
+             * Go to home position
+             */
             LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
             LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
 
+            /* 
+             * Send the symbol to stop data transfer
+             */
             manage_response('*');
             condition = 0;
         }
-           
     }
-    
-    return 0;    
+
+    return 0;
 }
