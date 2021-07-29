@@ -111,14 +111,14 @@ uint8_t Cycle = 1;
  * This is a special bit_mask to turn on segments on an indicator 
  */
 #define bits(PIN_7, PIN_6, PIN_5, PIN_4, PIN_3, PIN_2, PIN_1, PIN_0) \
-  ((PIN_7) * (LL_GPIO_PIN_7) | \
-   (PIN_6) * (LL_GPIO_PIN_6) | \
-   (PIN_5) * (LL_GPIO_PIN_5) | \
-   (PIN_4) * (LL_GPIO_PIN_4) | \
-   (PIN_3) * (LL_GPIO_PIN_3) | \
-   (PIN_2) * (LL_GPIO_PIN_2) | \
-   (PIN_1) * (LL_GPIO_PIN_1) | \
-   (PIN_0) * (LL_GPIO_PIN_0)   )
+    ((PIN_7) * (LL_GPIO_PIN_7) | \
+    (PIN_6) * (LL_GPIO_PIN_6) | \
+    (PIN_5) * (LL_GPIO_PIN_5) | \
+    (PIN_4) * (LL_GPIO_PIN_4) | \
+    (PIN_3) * (LL_GPIO_PIN_3) | \
+    (PIN_2) * (LL_GPIO_PIN_2) | \
+    (PIN_1) * (LL_GPIO_PIN_1) | \
+    (PIN_0) * (LL_GPIO_PIN_0)   )
 
 /*---------------------------------------------------------------------*/
 /*
@@ -126,10 +126,10 @@ uint8_t Cycle = 1;
  */
 uint32_t mask_indicator(uint32_t mask)
 {
-  return bits((mask & (1<<7)) >> 7, (mask & (1<<6)) >> 6, \
-         (mask & (1<<5)) >> 5, (mask & (1<<4)) >> 4, \
-         (mask & (1<<3)) >> 3, (mask & (1<<2)) >> 2, \
-         (mask & (1<<1)) >> 1, mask & 1);
+    return bits((mask & (1<<7)) >> 7, (mask & (1<<6)) >> 6, \
+                (mask & (1<<5)) >> 5, (mask & (1<<4)) >> 4, \
+                (mask & (1<<3)) >> 3, (mask & (1<<2)) >> 2, \
+                (mask & (1<<1)) >> 1, mask & 1);
 }
 
 /*---------------------------------------------------------------------*/
@@ -241,10 +241,10 @@ static void dec_display(uint32_t number)
     // Turn on a particular indicator
     LL_GPIO_ResetOutputPin(GPIOC, mask_indicator(1<<digit_num));
 
-    if(digit_num == 0) out = decoder[(number % 10)];
-    if(digit_num == 1) out = decoder[(number / 10) % 10];
-    if(digit_num == 2) out = decoder[(number / 100) % 10];
-    if(digit_num == 3) out = decoder[(number / 1000) % 10];
+    if (digit_num == 0) out = decoder[(number % 10)];
+    if (digit_num == 1) out = decoder[(number / 10) % 10];
+    if (digit_num == 2) out = decoder[(number / 100) % 10];
+    if (digit_num == 3) out = decoder[(number / 1000) % 10];
 
     LL_GPIO_WriteOutputPort(GPIOB, mask_indicator(out));
 
