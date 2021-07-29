@@ -216,7 +216,7 @@ static void gpio_config(void)
 /*
  * This function is for displaying number in decimal (0-9999)
  */
-void dec_display(uint32_t number)
+static void dec_display(uint32_t number)
 {
     static uint32_t digit_num = 0;
     uint16_t out = 0;
@@ -526,9 +526,8 @@ static void manage_response(int16_t value)
     if (value == '*' || value == ',' || value == '\n')
     {
         LL_USART_TransmitData8(USART1, value);
-        
         while (!LL_USART_IsActiveFlag_TC(USART1));
-
+        
         return;
     }
 
@@ -538,9 +537,7 @@ static void manage_response(int16_t value)
     if (value < 0) 
     {
         LL_USART_TransmitData8(USART1, '-');
-        
         while (!LL_USART_IsActiveFlag_TC(USART1));
-        
         value = abs(value);
     }
 
@@ -550,7 +547,6 @@ static void manage_response(int16_t value)
     while (value)
     {
         uart_resp.params[pos++] =  value % 10;
-        
         value /= 10;
     }
 
@@ -562,7 +558,6 @@ static void manage_response(int16_t value)
     while (pos >= 0)
     {
         while (!LL_USART_IsActiveFlag_TXE(USART1));
-        
         LL_USART_TransmitData8(USART1, uart_resp.params[pos--] + '0');
     }
 
