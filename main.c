@@ -94,15 +94,16 @@ const uint32_t Step_Y = 90;
 const double deg2rad = M_PI / 180.0; 
 
 /*
+ * Count of cycles for scanning
+ */
+const uint8_t Cycle = 1;
+
+/*
  * if scanDirection = 1 -> rotate the servo clockwise
  * else -> rotate the servo counterclockwise 
  */
 uint8_t scanDirection = 1;
 
-/*
- * Count of cycles for scanning
- */
-uint8_t Cycle = 1;
 
 /* ################################################################### */
 
@@ -111,14 +112,14 @@ uint8_t Cycle = 1;
  * This is a special bit_mask to turn on segments on an indicator 
  */
 #define bits(PIN_7, PIN_6, PIN_5, PIN_4, PIN_3, PIN_2, PIN_1, PIN_0) \
-  ((PIN_7) * (LL_GPIO_PIN_7) | \
-   (PIN_6) * (LL_GPIO_PIN_6) | \
-   (PIN_5) * (LL_GPIO_PIN_5) | \
-   (PIN_4) * (LL_GPIO_PIN_4) | \
-   (PIN_3) * (LL_GPIO_PIN_3) | \
-   (PIN_2) * (LL_GPIO_PIN_2) | \
-   (PIN_1) * (LL_GPIO_PIN_1) | \
-   (PIN_0) * (LL_GPIO_PIN_0)   )
+    ((PIN_7) * (LL_GPIO_PIN_7) | \
+    (PIN_6) * (LL_GPIO_PIN_6) | \
+    (PIN_5) * (LL_GPIO_PIN_5) | \
+    (PIN_4) * (LL_GPIO_PIN_4) | \
+    (PIN_3) * (LL_GPIO_PIN_3) | \
+    (PIN_2) * (LL_GPIO_PIN_2) | \
+    (PIN_1) * (LL_GPIO_PIN_1) | \
+    (PIN_0) * (LL_GPIO_PIN_0)   )
 
 /*---------------------------------------------------------------------*/
 /*
@@ -126,10 +127,10 @@ uint8_t Cycle = 1;
  */
 uint32_t mask_indicator(uint32_t mask)
 {
-  return bits((mask & (1<<7)) >> 7, (mask & (1<<6)) >> 6, \
-         (mask & (1<<5)) >> 5, (mask & (1<<4)) >> 4, \
-         (mask & (1<<3)) >> 3, (mask & (1<<2)) >> 2, \
-         (mask & (1<<1)) >> 1, mask & 1);
+    return bits((mask & (1<<7)) >> 7, (mask & (1<<6)) >> 6, \
+                (mask & (1<<5)) >> 5, (mask & (1<<4)) >> 4, \
+                (mask & (1<<3)) >> 3, (mask & (1<<2)) >> 2, \
+                (mask & (1<<1)) >> 1, mask & 1);
 }
 
 /*---------------------------------------------------------------------*/
@@ -176,7 +177,7 @@ static void rcc_config()
 
 /*---------------------------------------------------------------------*/
 /*
- * Configuration all GPIO pins
+ * Configurate all GPIO pins
  */
 static void gpio_config(void)
 {
@@ -197,7 +198,7 @@ static void gpio_config(void)
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_3, LL_GPIO_MODE_OUTPUT);
     
     /*
-     * Init ports for indicator
+     * Init ports for the indicator
      */
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT);
@@ -216,7 +217,7 @@ static void gpio_config(void)
 /*
  * This function is for displaying number in decimal (0-9999)
  */
-void dec_display(uint32_t number)
+static void dec_display(uint32_t number)
 {
     static uint32_t digit_num = 0;
     uint16_t out = 0;
@@ -241,10 +242,10 @@ void dec_display(uint32_t number)
     // Turn on a particular indicator
     LL_GPIO_ResetOutputPin(GPIOC, mask_indicator(1<<digit_num));
 
-    if(digit_num == 0) out = decoder[(number % 10)];
-    if(digit_num == 1) out = decoder[(number / 10) % 10];
-    if(digit_num == 2) out = decoder[(number / 100) % 10];
-    if(digit_num == 3) out = decoder[(number / 1000) % 10];
+    if (digit_num == 0) out = decoder[(number % 10)];
+    if (digit_num == 1) out = decoder[(number / 10) % 10];
+    if (digit_num == 2) out = decoder[(number / 100) % 10];
+    if (digit_num == 3) out = decoder[(number / 1000) % 10];
 
     LL_GPIO_WriteOutputPort(GPIOB, mask_indicator(out));
 
@@ -271,7 +272,7 @@ static void sonar_trig(void)
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM14);
 
     /*
-     * Frequency = 1000000 MHz
+     * Frequency = 1 MHz
      * Period PWM = 60 ms
      * Period Trigger = 10 mks (trigger input to module)
      */
@@ -309,7 +310,7 @@ static void sonar_echo(void)
     
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
-    LL_TIM_SetPrescaler(TIM3, 47); // frequency = 1000000 MHz
+    LL_TIM_SetPrescaler(TIM3, 47); // frequency = 1 MHz
 
     LL_TIM_IC_SetActiveInput(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
@@ -526,9 +527,8 @@ static void manage_response(int16_t value)
     if (value == '*' || value == ',' || value == '\n')
     {
         LL_USART_TransmitData8(USART1, value);
-        
         while (!LL_USART_IsActiveFlag_TC(USART1));
-
+        
         return;
     }
 
@@ -538,9 +538,7 @@ static void manage_response(int16_t value)
     if (value < 0) 
     {
         LL_USART_TransmitData8(USART1, '-');
-        
         while (!LL_USART_IsActiveFlag_TC(USART1));
-        
         value = abs(value);
     }
 
@@ -550,7 +548,6 @@ static void manage_response(int16_t value)
     while (value)
     {
         uart_resp.params[pos++] =  value % 10;
-        
         value /= 10;
     }
 
@@ -562,7 +559,6 @@ static void manage_response(int16_t value)
     while (pos >= 0)
     {
         while (!LL_USART_IsActiveFlag_TXE(USART1));
-        
         LL_USART_TransmitData8(USART1, uart_resp.params[pos--] + '0');
     }
 
@@ -702,6 +698,7 @@ int main()
 
                         scanDirection = 0;
                     }
+
                     /*
                      * Rotate the servo counterclockwise
                      */
