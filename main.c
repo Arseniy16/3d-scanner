@@ -94,15 +94,16 @@ const uint32_t Step_Y = 90;
 const double deg2rad = M_PI / 180.0; 
 
 /*
+ * Count of cycles for scanning
+ */
+const uint8_t Cycle = 1;
+
+/*
  * if scanDirection = 1 -> rotate the servo clockwise
  * else -> rotate the servo counterclockwise 
  */
 uint8_t scanDirection = 1;
 
-/*
- * Count of cycles for scanning
- */
-uint8_t Cycle = 1;
 
 /* ################################################################### */
 
@@ -176,7 +177,7 @@ static void rcc_config()
 
 /*---------------------------------------------------------------------*/
 /*
- * Configuration all GPIO pins
+ * Configurate all GPIO pins
  */
 static void gpio_config(void)
 {
@@ -197,7 +198,7 @@ static void gpio_config(void)
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_3, LL_GPIO_MODE_OUTPUT);
     
     /*
-     * Init ports for indicator
+     * Init ports for the indicator
      */
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT);
@@ -697,6 +698,7 @@ int main()
 
                         scanDirection = 0;
                     }
+                    
                     /*
                      * Rotate the servo counterclockwise
                      */
