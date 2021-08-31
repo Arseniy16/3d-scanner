@@ -272,7 +272,7 @@ static void sonar_trig(void)
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM14);
 
     /*
-     * Frequency = 1000000 MHz
+     * Frequency = 1 MHz
      * Period PWM = 60 ms
      * Period Trigger = 10 mks (trigger input to module)
      */
@@ -310,7 +310,7 @@ static void sonar_echo(void)
     
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
 
-    LL_TIM_SetPrescaler(TIM3, 47); // frequency = 1000000 MHz
+    LL_TIM_SetPrescaler(TIM3, 47); // frequency = 1 MHz
 
     LL_TIM_IC_SetActiveInput(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(TIM3, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
@@ -698,7 +698,7 @@ int main()
 
                         scanDirection = 0;
                     }
-                    
+
                     /*
                      * Rotate the servo counterclockwise
                      */
