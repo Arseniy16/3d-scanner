@@ -1,14 +1,14 @@
-/* |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
- * |---------------------------------------------------------|
- * |       It's a CONCLUSION PROJECT in the course STM32     |
- * |               This is Ultrasonic 3d_scanner             |
- * |---------------------------------------------------------|
- * |----------------------THE_MAIN_IDEA----------------------|
- * |=========================================================|
- * |It scans the space using ultrasonic sensor and two servos|
- * |Also it shows the distance on the 7-segment indicator    |
- * |and sends it through the usart to show data in graph     |
- * |=========================================================|
+/* |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\    |
+ * |-------------------------------------------------------------|
+ * | It's a CONCLUSION PROJECT in the course of Microcontrollers |
+ * |               This is Ultrasonic 3d_scanner                 |
+ * |-------------------------------------------------------------|
+ * |----------------------THE_MAIN_IDEA--------------------------|
+ * |=============================================================|
+ * |It scans the space using ultrasonic sensor and two servos    |
+ * |Also it shows the distance on the 7-segment indicator        |
+ * |and sends it through the usart to show data in graph         |
+ * |=============================================================|
  */
 
 #include "stm32f0xx_ll_rcc.h"
@@ -34,13 +34,13 @@
  */ 
 /*_____________________________________________________________________*/
 /* 
- * 0deg -> ARR = 1600 (0.5 ms)
- * 180deg -> ARR = 8300 (2.6 ms)
+ * 0deg -> ARR = 1600 (0.5 ms) - 50
+ * 180deg -> ARR = 8300 (2.6 ms) - 260
  */
 /*---------------------------------------------------------------------*/
 
 /* ==============================================
- * Servo_1(X): 0 deg -> ARR = 2080 (0.65 ms)
+ * Servo_1(X): 0 deg -> ARR = 2080 (0.65 ms) 
  *             180 deg -> ARR = 7680 (2.4 ms)
  * ----------------------------------------------
  * Servo_2(Y): 0 deg -> ARR = 1600 (0.5 ms)
@@ -67,8 +67,8 @@ double dist = 0.0;
 /*
  * Edge - ARR for servo in normal condition (0 - 180)
  */
-const uint32_t minEdge_X = 2080;
-const uint32_t maxEdge_X = 7680;
+const uint32_t minEdge_X = 1600;//2080;
+const uint32_t maxEdge_X = 7680;//7680;
 
 const uint32_t minEdge_Y = 1600;
 const uint32_t maxEdge_Y = 7680;
@@ -88,8 +88,8 @@ const uint32_t maxArr_Y = 6667; // 150 deg
  *                      Step_Y - for XZ_plane
  * NO: 1 step = 0.03 deg
  */
-const uint32_t Step_X = 60;
-const uint32_t Step_Y = 90; 
+const uint32_t Step_X = 60; //60
+const uint32_t Step_Y = 90; //90 
 
 const double deg2rad = M_PI / 180.0; 
 
@@ -104,15 +104,46 @@ const uint8_t Cycle = 1;
  */
 uint8_t scanDirection = 1;
 
+// uint8_t status_wait = 0;
 
 /* ################################################################### */
+/* --------------------------TEXT-VARIABLES----------------------------*/
+/////////////////////////////////////////////////////////////////////////
+
+/*
+ * During TEXT_TIME you can show the text 
+ * It uses in text()
+ */ 
+#define TEXT_TIME 1000 //in ms
+
+/*
+ * During DEC_TIME and DYN_TIME you can show a value 
+ * It uses in dec_display() and in dyn_display()
+ */ 
+#define DEC_TIME 5 //in ms
+
+#define DYN_TIME 1000 //in ms
+
+/*
+ * It uses in delay() and for calculate count in cycles 
+ * If you change delay() you must change DELAY!!!
+ */
+#define DELAY 2 //in ms
+
+/*
+ * The higher DYNAMIC_COEF, the slower the text moves
+ * It uses in dynamic_text()    
+ */
+#define DYNAMIC_COEF 50 //normal value
+
+/////////////////////////////////////////////////////////////////////////
 
 /*---------------------------------------------------------------------*/
 /*
  * This is a special bit_mask to turn on segments on an indicator 
  */
 #define bits(PIN_7, PIN_6, PIN_5, PIN_4, PIN_3, PIN_2, PIN_1, PIN_0) \
-    ((PIN_7) * (LL_GPIO_PIN_7) | \
+    ((PIN_7)* (LL_GPIO_PIN_7) | \
     (PIN_6) * (LL_GPIO_PIN_6) | \
     (PIN_5) * (LL_GPIO_PIN_5) | \
     (PIN_4) * (LL_GPIO_PIN_4) | \
@@ -326,7 +357,7 @@ static void sonar_echo(void)
      * Setup NVIC
      */ 
     NVIC_EnableIRQ(TIM3_IRQn);
-    NVIC_SetPriority(TIM3_IRQn, 2);
+    NVIC_SetPriority(TIM3_IRQn, 1);
 
     return ;
 }
@@ -334,7 +365,7 @@ static void sonar_echo(void)
 /*---------------------------------------------------------------------*/
 /*
  * Configuration SERVO_1 in the XY plane
- *
+ * 
  * // TIM2 CH1 (GPIOA PIN0 AF2) - XY_plane \\
  */
 static void servo_1(void) 
@@ -351,9 +382,10 @@ static void servo_1(void)
     /*
      * Period PWM = 20 ms
      */
-    LL_TIM_SetPrescaler(TIM2, 14); 
-    LL_TIM_SetAutoReload(TIM2, 64000);
-    
+    LL_TIM_SetPrescaler(TIM2, 14); //14
+    LL_TIM_SetAutoReload(TIM2, 64000); //64000
+    //LL_TIM_OC_SetCompareCH1(TIM2, minArr_X); //
+
     LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH1);
 
     LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);
@@ -364,14 +396,17 @@ static void servo_1(void)
     LL_TIM_EnableIT_CC1(TIM2);
     LL_TIM_EnableCounter(TIM2);
 
+    NVIC_EnableIRQ(TIM2_IRQn);
+    NVIC_SetPriority(TIM2_IRQn, 2);
+    
     return ;
 }
 
 /*---------------------------------------------------------------------*/
 /*
  * Configuration SERVO_2 in the XZ plane
- *
- * // TIM2 CH2 (GPIOA PIN1 AF2) - XZ_plane \\
+ * 
+ * // TIM2 CH3 (GPIOA PIN2 AF2) - XZ-plane \\
  */
 static void servo_2(void)
 {
@@ -379,8 +414,8 @@ static void servo_2(void)
      * Init servo as // TIM2 CH2 (GPIOA PIN1 AF2) \\
      */
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-    LL_GPIO_SetPinMode  (GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_1, LL_GPIO_AF_2);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_2);
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
 
@@ -390,17 +425,31 @@ static void servo_2(void)
     LL_TIM_SetPrescaler(TIM2, 14); 
     LL_TIM_SetAutoReload(TIM2, 64000);
 
-    LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH2);
+    LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH3);
 
-    LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_OCPOLARITY_HIGH);
-    LL_TIM_OC_SetMode(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
+    LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH3, LL_TIM_OCPOLARITY_HIGH);
+    LL_TIM_OC_SetMode(TIM2, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
 
     LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
     
-    LL_TIM_EnableIT_CC1(TIM2);
+    LL_TIM_EnableIT_CC3(TIM2);
     LL_TIM_EnableCounter(TIM2);
 
+    NVIC_EnableIRQ(TIM2_IRQn);
+    NVIC_SetPriority(TIM2_IRQn, 3);
+
     return ;
+}
+
+/*---------------------------------------------------------------------*/
+/*
+ * Handler for TIMER_2
+ */
+void TIM2_IRQHandler(void)
+{
+    LL_TIM_ClearFlag_UPDATE(TIM2);
+    LL_TIM_ClearFlag_CC1(TIM2);
+    LL_TIM_ClearFlag_CC3(TIM2);
 }
 
 /*---------------------------------------------------------------------*/
@@ -484,6 +533,7 @@ static void usart_config(void)
      */
     LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_USART1);
     LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK1);
+    
     /*
      * USART Setting
      */
@@ -517,14 +567,14 @@ static void usart_config(void)
  */
 static void manage_response(int16_t value) 
 {
-    int8_t pos = 0; // init position
+    int8_t pos = 0; // init the position
         
     LL_USART_ClearFlag_TC(USART1); // update the flag
 
     /*
-     * Special separators for sending a string to usart
+     * Special separators for sending the string to usart
      */
-    if (value == '*' || value == ',' || value == '\n')
+    if ((value == '*') || (value == ',') || (value == '\n'))
     {
         LL_USART_TransmitData8(USART1, value);
         while (!LL_USART_IsActiveFlag_TC(USART1));
@@ -632,7 +682,154 @@ static void Conversation(uint32_t Arr_X, uint32_t Arr_Y)
     return;
 } 
 
+/*-----------------------------text------------------------------------*/
+/*
+ * This function translates symbol for 7_segment indicator
+ */
+uint32_t symbols(char c)
+{
+    uint32_t out = 0;
+    switch(c)
+    {
+        case 'a': out = bits(0,1,1,1,0,1,1,1); break;                               
+        case 'b': out = bits(0,1,1,1,1,1,0,0); break;
+        case 'c': out = bits(0,0,1,1,1,0,0,1); break;
+        case 'd': out = bits(0,1,0,1,1,1,1,0); break;
+        case 'E': 
+        case 'e': out = bits(0,1,1,1,1,0,0,1); break;
+        case 'f': out = bits(0,1,1,1,0,0,0,1); break;
+        case 'g': out = bits(0,1,1,1,1,1,0,1); break;
+        case 'H': out = bits(0,1,1,1,0,1,1,0); break;
+        case 'i': out = bits(0,0,0,0,0,1,1,0); break;
+        case 'j': out = bits(0,0,0,0,1,1,1,0); break;
+        case 'L': out = bits(0,0,1,1,1,0,0,0); break;
+        case 'n': out = bits(0,1,0,1,0,1,0,0); break;
+        case 'O': out = bits(0,0,1,1,1,1,1,1); break;
+        case 'o': out = bits(0,1,0,1,1,1,0,0); break;
+        case 'p': out = bits(0,1,1,1,0,0,1,1); break;
+        case 's': out = bits(0,1,1,0,1,1,0,1); break;
+        case 'U': out = bits(0,0,1,1,1,1,1,0); break;
+        case 'u': out = bits(0,0,0,1,1,1,0,0); break;
+        case 'z': out = bits(0,1,0,1,1,0,1,1); break;
+        case 'q': out = bits(0,1,1,0,0,1,1,1); break;
+        case 'r': out = bits(0,1,0,1,0,0,0,0); break;
+        case 't': out = bits(0,1,1,1,1,0,0,0); break;
+        case 'y': out = bits(0,1,1,0,1,1,1,0); break;
+        case ',':
+        case '.': out = bits(1,0,0,0,0,0,0,0); break;
+        case '!': out = bits(1,0,0,0,0,1,1,0); break;
+        case '?': out = bits(1,0,1,0,0,1,1,1); break;
+        case '_': out = bits(0,0,0,0,1,0,0,0); break;
+        case '-': out = bits(0,1,0,0,0,0,0,0); break;
+        case '3': out = bits(0,1,0,0,1,1,1,1); break;
+        default:  out = bits(0,0,0,0,0,0,0,0); break;
+    }
+    return out;
+}
+
 /*---------------------------------------------------------------------*/
+/*
+ * Just set of commands to waste CPU power for DELAY __2ms__ 
+ */
+__attribute__((naked)) static void delay(void)
+{
+    asm ("push {r7, lr}");
+    asm ("ldr r6, [pc, #8]");
+    asm ("sub r6, #1");
+    asm ("cmp r6, #0");
+    asm ("bne delay+0x4");
+    asm ("pop {r7, pc}");
+    asm (".word 0x2ee0"); //12000 (2ms)
+}
+
+/*---------------------------------------------------------------------*/
+/*
+ * this function is for displaying dynamic text (> 4 symbols)
+ */
+void dynamic_text(char line[])
+{
+    char c = line[0];
+    uint32_t i = 0, last_cnt = 0;
+    
+    while(c != '\0')
+    {           
+        /*
+         * This cycle to slow down the text
+         * The higher DYNAMIC_COEF, the slower the text moves
+         */
+        for(int cnt = 0; cnt < DYNAMIC_COEF; cnt++) 
+        {       
+            //this cycle to scroll all text
+            for(uint32_t num = i, next = 0; next < 4; num--, next++)
+            {   
+                c = line[num];
+    
+                //update indicator every cycle
+                LL_GPIO_WriteOutputPort(GPIOC, mask_indicator(0b1111));
+                
+                //bit shift for 7-segment indicator
+                LL_GPIO_ResetOutputPin(GPIOC, mask_indicator(1<<next));
+
+                //turn on the indicator 
+                LL_GPIO_WriteOutputPort(GPIOB, symbols(c));
+            
+                delay();
+            }
+        }
+        
+        c = line[i++];
+        
+        //it's necessary for the text to reach the end of the indicator
+        if(c == '\0' || last_cnt != 0 )
+        {       
+            if(last_cnt < 2) 
+            {   
+                c = ' ';
+                last_cnt++;
+            }
+            else c = '\0'; 
+        }
+    }
+    return;
+}
+
+/*---------------------------------------------------------------------*/
+/*
+ * this function is for displaying static text (just < 4 symbols)
+ */
+void text(char line[])
+{
+    uint32_t out = 0;
+    
+    //during this TEXT_TIME you can show the text
+    for(uint32_t cycle = 0; cycle < TEXT_TIME / (5 * DELAY) ; cycle++) 
+    {
+        char c = line[0];
+
+        for(uint8_t shift = 3, i = 0; c != '\0'; shift--, i++)
+        {
+            c = line[i];
+            
+            out = symbols(c);
+
+            //update indicator every cycle
+            LL_GPIO_WriteOutputPort(GPIOC, mask_indicator(0b1111));
+
+            //bit shift for the 7-segment indicator
+            LL_GPIO_ResetOutputPin(GPIOC, mask_indicator(1 << shift));
+
+            //turn on the indicator 
+            LL_GPIO_WriteOutputPort(GPIOB, out);
+
+            delay();
+        }
+
+        delay();
+    }
+    return;
+}
+
+/*-----------------------------main program-----------------------------------*/
 int main()
 {
     /*
@@ -640,6 +837,19 @@ int main()
      */
     rcc_config();
     gpio_config();
+
+    /*
+     * Greeting to init the 3d-scanner
+     */
+    text(" ");
+    dynamic_text("HELLO donou!");
+    text(" ");
+    dynamic_text("it is 3d-scanner");
+    text("good");
+
+    /*
+     * Continue initialize neccesary components 
+     */
     sonar_trig();
     sonar_echo();
     servo_1();
@@ -648,98 +858,101 @@ int main()
     usart_config();
 
     /*
-     * Condition for starting the main program
+     * Condition to start the main program
      */
     uint8_t condition = 1;
 
-    while (1)
+    while (condition != 0)
     {
-        if (condition)
+        for (uint8_t i = 0; i < Cycle; i++)
         {
-            for (uint8_t i = 0; i < Cycle; i++)
+            /*
+             * Initialize home position 
+             */
+            uint32_t Arr_X = minArr_X;
+            uint32_t Arr_Y = minArr_Y;
+            
+            while (Arr_Y <= maxArr_Y)
             {
                 /*
-                 * Initialize home position 
+                 * Set the new position for the servo_2 (in XZ-plane)
                  */
-                uint32_t Arr_X = minArr_X;
-                uint32_t Arr_Y = minArr_Y;
+                LL_TIM_OC_SetCompareCH3(TIM2, Arr_Y);
 
-                while (Arr_Y <= maxArr_Y)
+                /*
+                 * Rotate the servo clockwise
+                 */
+                if (scanDirection)
                 {
-                    /*
-                     * Set the new position for the servo_2 (in XZ-plane)
-                     */
-                    LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y);
-
-                    /*
-                     * Rotate the servo clockwise
-                     */
-                    if (scanDirection)
+                    while (Arr_X <= maxArr_X)
                     {
-                        while (Arr_X <= maxArr_X)
-                        {
-                            /*
-                             * Wait 60 ms until get the next distance  
-                             */
-                            if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-                            
-                            /*
-                             * Send coordinates to USART
-                             */   
-                            Conversation(Arr_X, Arr_Y); 
-                            
-                            /*
-                             * Set the new position for the servo_1 (in XY-plane)
-                             */
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
-                            
-                            Arr_X += Step_X;  
-                        }
+                        /*
+                         * Wait 60 ms until get the next distance  
+                         */
+                        if (LL_TIM_GetCounter(TIM14) < 58000) continue;
 
-                        scanDirection = 0;
+                        /*
+                         * Send coordinates to USART
+                         */   
+                        Conversation(Arr_X, Arr_Y); 
+                        
+                        /*
+                         * Set the new position for the servo_1 (in XY-plane)
+                         */
+                        LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
+                     
+                        Arr_X += Step_X;  
                     }
 
-                    /*
-                     * Rotate the servo counterclockwise
-                     */
-                    else 
+                    scanDirection = 0;
+                }
+
+                /*
+                 * Rotate the servo counterclockwise
+                 */
+                else 
+                {
+                    while (Arr_X >= minArr_X)
                     {
-                        while (Arr_X >= minArr_X)
-                        {
-                            if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-                            
-                            /*
-                             * Send coordinates to USART
-                             */  
-                            Conversation(Arr_X, Arr_Y);
-                            
-                            /*
-                             * Set the new position for the servo_1 (in XY-plane)
-                             */
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
+                        /*
+                         * Wait 60 ms until get the next distance  
+                         */
+                        if (LL_TIM_GetCounter(TIM14) < 58000) continue;
+                        
+                        /*
+                         * Send coordinates to USART
+                         */  
+                        Conversation(Arr_X, Arr_Y);
 
-                            Arr_X -= Step_X;
-                        }
+                        /*
+                         * Set the new position for the servo_1 (in XY-plane)
+                         */
+                        LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
 
-                        scanDirection = 1;
+                        Arr_X -= Step_X;
                     }
 
-                    Arr_Y += Step_Y;
-                }    
-            }
+                    scanDirection = 1;
+                }
 
-            /*
-             * Go to home position
-             */
-            LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
-            LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
-
-            /* 
-             * Send the symbol to stop data transfer
-             */
-            manage_response('*');
-            condition = 0;
+                Arr_Y += Step_Y;
+            }    
         }
+
+        /*
+         * Go to home position
+         */
+        LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
+        LL_TIM_OC_SetCompareCH3(TIM2, minArr_Y);
+
+        LL_TIM_ClearFlag_CC1(TIM2);
+        LL_TIM_ClearFlag_CC3(TIM2);
+
+        /* 
+         * Send the symbol to stop data transfer
+         */
+        manage_response('*');
+        condition = 0;
     }
 
     return 0;
