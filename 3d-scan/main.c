@@ -88,8 +88,8 @@ const uint32_t maxArr_Y = 6667; // 150 deg
  *                      Step_Y - for XZ_plane
  * NO: 1 step = 0.03 deg
  */
-const uint32_t Step_X = 60;
-const uint32_t Step_Y = 90; 
+const uint32_t Step_X = 60; //60
+const uint32_t Step_Y = 90; //90 
 
 const double deg2rad = M_PI / 180.0; 
 
@@ -112,7 +112,7 @@ uint8_t scanDirection = 1;
  * This is a special bit_mask to turn on segments on an indicator 
  */
 #define bits(PIN_7, PIN_6, PIN_5, PIN_4, PIN_3, PIN_2, PIN_1, PIN_0) \
-    ((PIN_7) * (LL_GPIO_PIN_7) | \
+    ((PIN_7)* (LL_GPIO_PIN_7) | \
     (PIN_6) * (LL_GPIO_PIN_6) | \
     (PIN_5) * (LL_GPIO_PIN_5) | \
     (PIN_4) * (LL_GPIO_PIN_4) | \
@@ -326,7 +326,7 @@ static void sonar_echo(void)
      * Setup NVIC
      */ 
     NVIC_EnableIRQ(TIM3_IRQn);
-    NVIC_SetPriority(TIM3_IRQn, 2);
+    NVIC_SetPriority(TIM3_IRQn, 1);
 
     return ;
 }
@@ -354,6 +354,9 @@ static void servo_1(void)
     LL_TIM_SetPrescaler(TIM2, 14); 
     LL_TIM_SetAutoReload(TIM2, 64000);
     
+    LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
+    //LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
+
     LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH1);
 
     LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);
@@ -361,8 +364,11 @@ static void servo_1(void)
 
     LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
     
-    LL_TIM_EnableIT_CC1(TIM2);
+    LL_TIM_EnableIT_CC2(TIM2);
     LL_TIM_EnableCounter(TIM2);
+
+    NVIC_EnableIRQ(TIM2_IRQn);
+    NVIC_SetPriority(TIM2_IRQn, 2);
 
     return ;
 }
@@ -379,7 +385,7 @@ static void servo_2(void)
      * Init servo as // TIM2 CH2 (GPIOA PIN1 AF2) \\
      */
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-    LL_GPIO_SetPinMode  (GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_1, LL_GPIO_AF_2);
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
@@ -390,6 +396,9 @@ static void servo_2(void)
     LL_TIM_SetPrescaler(TIM2, 14); 
     LL_TIM_SetAutoReload(TIM2, 64000);
 
+    //LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
+    LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
+    
     LL_TIM_CC_EnableChannel(TIM2, LL_TIM_CHANNEL_CH2);
 
     LL_TIM_OC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_OCPOLARITY_HIGH);
@@ -397,11 +406,31 @@ static void servo_2(void)
 
     LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
     
-    LL_TIM_EnableIT_CC1(TIM2);
+    LL_TIM_EnableIT_CC2(TIM2);
     LL_TIM_EnableCounter(TIM2);
+
+    NVIC_EnableIRQ(TIM2_IRQn);
+    NVIC_SetPriority(TIM2_IRQn, 3);
 
     return ;
 }
+
+#if 0
+/*---------------------------------------------------------------------*/
+/*
+ * Handler for TIMER_2
+ */
+void TIM2_IRQHandler(void)
+{
+    /*
+     * Just clear capture flags for correct PWM signal
+     */
+    LL_TIM_ClearFlag_CC1(TIM2);
+    //LL_TIM_ClearFlag_CC2(TIM2);
+
+    return;
+}
+#endif
 
 /*---------------------------------------------------------------------*/
 /*
@@ -437,7 +466,7 @@ void TIM3_IRQHandler(void)
  */
 static void systick_config(void)
 {
-    LL_InitTick(48000000, 1000);
+    LL_InitTick(48000000, 1000);//1000
 
     LL_SYSTICK_EnableIT();
     
@@ -492,7 +521,7 @@ static void usart_config(void)
     LL_USART_SetDataWidth(USART1, LL_USART_DATAWIDTH_8B);
     LL_USART_SetStopBitsLength(USART1, LL_USART_STOPBITS_1);
     LL_USART_SetTransferBitOrder(USART1, LL_USART_BITORDER_LSBFIRST);
-    LL_USART_SetBaudRate(USART1, SystemCoreClock, LL_USART_OVERSAMPLING_16, 115200);
+    LL_USART_SetBaudRate(USART1, SystemCoreClock, LL_USART_OVERSAMPLING_16, 115200);//115200
     LL_USART_EnableIT_IDLE(USART1);
     LL_USART_EnableIT_RXNE(USART1);
     
@@ -524,7 +553,7 @@ static void manage_response(int16_t value)
     /*
      * Special separators for sending a string to usart
      */
-    if (value == '*' || value == ',' || value == '\n')
+    if ((value == '*') || (value == ',') || (value == '\n'))
     {
         LL_USART_TransmitData8(USART1, value);
         while (!LL_USART_IsActiveFlag_TC(USART1));
@@ -647,99 +676,107 @@ int main()
     systick_config();
     usart_config();
 
+    //LL_TIM_ClearFlag_CC1(TIM2);
+    //LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
+    //LL_TIM_ClearFlag_CC2(TIM2);
+    //LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
+    
     /*
      * Condition for starting the main program
      */
     uint8_t condition = 1;
 
-    while (1)
+    //while (1);
+    while (condition != 0)
     {
-        if (condition)
+        for (uint8_t i = 0; i < Cycle; i++)
         {
-            for (uint8_t i = 0; i < Cycle; i++)
+            /*
+             * Initialize home position 
+             */
+            uint32_t Arr_X = minArr_X;
+            uint32_t Arr_Y = minArr_Y;
+
+            while (Arr_Y <= maxArr_Y)
             {
                 /*
-                 * Initialize home position 
+                 * Set the new position for the servo_2 (in XZ-plane)
                  */
-                uint32_t Arr_X = minArr_X;
-                uint32_t Arr_Y = minArr_Y;
+                //LL_TIM_ClearFlag_CC2(TIM2);
+                LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y);
 
-                while (Arr_Y <= maxArr_Y)
+                /*
+                 * Rotate the servo clockwise
+                 */
+                if (scanDirection)
                 {
-                    /*
-                     * Set the new position for the servo_2 (in XZ-plane)
-                     */
-                    LL_TIM_OC_SetCompareCH2(TIM2, Arr_Y);
-
-                    /*
-                     * Rotate the servo clockwise
-                     */
-                    if (scanDirection)
+                    while (Arr_X <= maxArr_X)
                     {
-                        while (Arr_X <= maxArr_X)
-                        {
-                            /*
-                             * Wait 60 ms until get the next distance  
-                             */
-                            if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-                            
-                            /*
-                             * Send coordinates to USART
-                             */   
-                            Conversation(Arr_X, Arr_Y); 
-                            
-                            /*
-                             * Set the new position for the servo_1 (in XY-plane)
-                             */
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
-                            
-                            Arr_X += Step_X;  
-                        }
-
-                        scanDirection = 0;
+                        /*
+                         * Wait 60 ms until get the next distance  
+                         */
+                        if (LL_TIM_GetCounter(TIM14) < 59900) continue;
+                        
+                        /*
+                         * Send coordinates to USART
+                         */   
+                        Conversation(Arr_X, Arr_Y); 
+                        
+                        /*
+                         * Set the new position for the servo_1 (in XY-plane)
+                         */
+                        //LL_TIM_ClearFlag_CC1(TIM2);
+                        LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
+                        
+                        Arr_X += Step_X;  
                     }
 
-                    /*
-                     * Rotate the servo counterclockwise
-                     */
-                    else 
+                    scanDirection = 0;
+                }
+
+                /*
+                 * Rotate the servo counterclockwise
+                 */
+                else 
+                {
+                    while (Arr_X >= minArr_X)
                     {
-                        while (Arr_X >= minArr_X)
-                        {
-                            if (LL_TIM_GetCounter(TIM14) < 59900) continue;
-                            
-                            /*
-                             * Send coordinates to USART
-                             */  
-                            Conversation(Arr_X, Arr_Y);
-                            
-                            /*
-                             * Set the new position for the servo_1 (in XY-plane)
-                             */
-                            LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
+                        if (LL_TIM_GetCounter(TIM14) < 59900) continue;
+                        
+                        /*
+                         * Send coordinates to USART
+                         */  
+                        Conversation(Arr_X, Arr_Y);
+                        
+                        /*
+                         * Set the new position for the servo_1 (in XY-plane)
+                         */
+                        //LL_TIM_ClearFlag_CC1(TIM2);
+                        LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
 
-                            Arr_X -= Step_X;
-                        }
-
-                        scanDirection = 1;
+                        Arr_X -= Step_X;
                     }
 
-                    Arr_Y += Step_Y;
-                }    
-            }
+                    scanDirection = 1;
+                }
 
-            /*
-             * Go to home position
-             */
-            LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
-            LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
-
-            /* 
-             * Send the symbol to stop data transfer
-             */
-            manage_response('*');
-            condition = 0;
+                Arr_Y += Step_Y;
+            }    
         }
+
+        /*
+         * Go to home position
+         */
+        LL_TIM_ClearFlag_CC1(TIM2);
+        LL_TIM_ClearFlag_CC2(TIM2);
+        LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
+        LL_TIM_OC_SetCompareCH2(TIM2, minArr_Y);
+
+        /* 
+         * Send the symbol to stop data transfer
+         */
+        manage_response('*');
+        condition = 0;
     }
 
     return 0;
