@@ -402,7 +402,6 @@ static void servo_1(void)
     return ;
 }
 
-
 /*---------------------------------------------------------------------*/
 /*
  * Configuration SERVO_2 in the XZ plane
@@ -477,8 +476,6 @@ void TIM3_IRQHandler(void)
     dist = diff / 58.8 ; // distance in centimeters
 
     LL_TIM_ClearFlag_CC2(TIM3);
-
-    //status_wait = 1;
 
     return;
 }
@@ -875,17 +872,11 @@ int main()
             uint32_t Arr_X = minArr_X;
             uint32_t Arr_Y = minArr_Y;
             
-            // LL_TIM_ClearFlag_CC1(TIM2);
-            // LL_TIM_ClearFlag_CC3(TIM2);
-            // LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
-            // LL_TIM_OC_SetCompareCH3(TIM2, Arr_Y);
-
             while (Arr_Y <= maxArr_Y)
             {
                 /*
                  * Set the new position for the servo_2 (in XZ-plane)
                  */
-                //LL_TIM_ClearFlag_CC3(TIM2);
                 LL_TIM_OC_SetCompareCH3(TIM2, Arr_Y);
 
                 /*
@@ -898,25 +889,6 @@ int main()
                         /*
                          * Wait 60 ms until get the next distance  
                          */
-                    /*
-                        while (status_wait) 
-                        {
-                            for (int i = 0; i < 10; i++)
-                                delay();
-                        }
-                    */
-                    #if 0
-                        while (!status_wait) 
-                        {
-                            //for (int i = 0; i < 30; i++)
-                            //    delay();
-                            if (LL_TIM_GetCounter(TIM14) > 50000) break;
-                        }
-                                
-                        status_wait = 0;
-                    #endif
-                        //for (int i = 0; i < 20; i++) delay();
-                        //while (LL_TIM_GetCounter(TIM14) < 59900) ;
                         if (LL_TIM_GetCounter(TIM14) < 58000) continue;
 
                         /*
@@ -927,7 +899,6 @@ int main()
                         /*
                          * Set the new position for the servo_1 (in XY-plane)
                          */
-                        //LL_TIM_ClearFlag_CC1(TIM2);
                         LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
                      
                         Arr_X += Step_X;  
@@ -943,27 +914,9 @@ int main()
                 {
                     while (Arr_X >= minArr_X)
                     {
-                        
-                        //biba
-                    /*
-                        while (status_wait)
-                        {
-                            for (int i = 0; i < 10; i++)
-                                delay();
-                        }
-                    */
-                    #if 0
-                        while (!status_wait)
-                        {
-                            //for (int i = 0; i < 20; i++)
-                            //   delay();
-                            if (LL_TIM_GetCounter(TIM14) > 50000) break;
-                        }
-
-                        status_wait = 0;
-                    #endif
-                        //for (int i = 0; i < 20; i++) delay();
-                        //while (LL_TIM_GetCounter(TIM14) < 59900) ;
+                        /*
+                         * Wait 60 ms until get the next distance  
+                         */
                         if (LL_TIM_GetCounter(TIM14) < 58000) continue;
                         
                         /*
@@ -974,7 +927,6 @@ int main()
                         /*
                          * Set the new position for the servo_1 (in XY-plane)
                          */
-                        //LL_TIM_ClearFlag_CC1(TIM2);
                         LL_TIM_OC_SetCompareCH1(TIM2, Arr_X);
 
                         Arr_X -= Step_X;
@@ -990,11 +942,7 @@ int main()
         /*
          * Go to home position
          */
-        //LL_TIM_ClearFlag_CC1(TIM2);
-        //LL_TIM_ClearFlag_CC3(TIM2);
-        //LL_TIM_ClearFlag_CC1(TIM2);
         LL_TIM_OC_SetCompareCH1(TIM2, minArr_X);
-        //LL_TIM_ClearFlag_CC3(TIM2);
         LL_TIM_OC_SetCompareCH3(TIM2, minArr_Y);
 
         LL_TIM_ClearFlag_CC1(TIM2);
@@ -1006,7 +954,6 @@ int main()
         manage_response('*');
         condition = 0;
     }
-//#endif
 
     return 0;
 }
